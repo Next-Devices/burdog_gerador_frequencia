@@ -202,6 +202,7 @@ int main(void)
                   esvaziando = 0;
                   freqAtual = FREQ_VAZIO;
                   PWM_SetFrequency(FREQ_VAZIO);
+                  nivelAtual = NIVEL_NENHUM;
                   HAL_GPIO_WritePin(extra_baixo_GPIO_Port, extra_baixo_Pin, GPIO_PIN_RESET);
                   HAL_GPIO_WritePin(baixo_GPIO_Port, baixo_Pin, GPIO_PIN_RESET);
                   HAL_GPIO_WritePin(medio_GPIO_Port, medio_Pin, GPIO_PIN_RESET);
