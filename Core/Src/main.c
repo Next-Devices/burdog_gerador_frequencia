@@ -30,6 +30,7 @@
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
+/* USER CODE BEGIN PD */
 #define FREQ_EXTRA_BAIXO   24850
 #define FREQ_BAIXO         24300
 #define FREQ_MEDIO         23500
@@ -48,16 +49,6 @@ NivelPressostato nivelAtual = NIVEL_NENHUM;
 uint32_t freqAlvo = FREQ_EXTRA_BAIXO;
 uint32_t freqAtual = FREQ_VAZIO;
 
-uint8_t enchendo = 0;
-uint8_t esvaziando = 0;
-uint32_t last_nivel_press_time = 0;
-uint32_t last_encher_press_time = 0;
-uint32_t last_esvaziar_press_time = 0;
-const uint32_t DEBOUNCE_TIME = 200; // 200ms
-const uint32_t FREQ_UPDATE_TIME = 50; // 50ms
-uint32_t last_freq_update_time = 0;
-/* USER CODE BEGIN PD */
-
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -66,21 +57,29 @@ uint32_t last_freq_update_time = 0;
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-TIM_HandleTypeDef htim2;
+
+COM_InitTypeDef BspCOMInit;
+
+TIM_HandleTypeDef htim3;
 
 /* USER CODE BEGIN PV */
-
+uint8_t enchendo = 0;
+uint8_t esvaziando = 0;
+uint32_t last_nivel_press_time = 0;
+uint32_t last_encher_press_time = 0;
+uint32_t last_esvaziar_press_time = 0;
+const uint32_t DEBOUNCE_TIME = 200; // 200ms
+const uint32_t FREQ_UPDATE_TIME = 50; // 50ms
+uint32_t last_freq_update_time = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_TIM2_Init(void);
-
+static void MX_TIM3_Init(void);
+/* USER CODE BEGIN PFP */
 void PWM_SetFrequency(uint32_t freq);
 void AtualizaLEDs(NivelPressostato nivel);
-/* USER CODE BEGIN PFP */
-
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -117,142 +116,113 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_TIM2_Init();
-  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+  MX_TIM3_Init();
 
-  // Inicializa com frequência de "vazio"
-  PWM_SetFrequency(FREQ_VAZIO);
-
-  // Desliga todos os LEDs inicialmente
-  HAL_GPIO_WritePin(extra_baixo_GPIO_Port, extra_baixo_Pin, GPIO_PIN_RESET);
-  HAL_GPIO_WritePin(baixo_GPIO_Port, baixo_Pin, GPIO_PIN_RESET);
-  HAL_GPIO_WritePin(medio_GPIO_Port, medio_Pin, GPIO_PIN_RESET);
-  HAL_GPIO_WritePin(alto_GPIO_Port, alto_Pin, GPIO_PIN_RESET);
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
 
+  /* Initialize leds */
+  BSP_LED_Init(LED_GREEN);
+
+  /* Initialize USER push-button, will be used to trigger an interrupt each time it's pressed.*/
+  BSP_PB_Init(BUTTON_USER, BUTTON_MODE_EXTI);
+
+  /* Initialize COM1 port (115200, 8 bits (7-bit data + 1 stop bit), no parity */
+  BspCOMInit.BaudRate   = 115200;
+  BspCOMInit.WordLength = COM_WORDLENGTH_8B;
+  BspCOMInit.StopBits   = COM_STOPBITS_1;
+  BspCOMInit.Parity     = COM_PARITY_NONE;
+  BspCOMInit.HwFlowCtl  = COM_HWCONTROL_NONE;
+  if (BSP_COM_Init(COM1, &BspCOMInit) != BSP_ERROR_NONE)
+  {
+    Error_Handler();
+  }
+
+   // Inicializa com frequência de "vazio"
+   PWM_SetFrequency(FREQ_VAZIO);
+   // Desliga todos os LEDs inicialmente
+   HAL_GPIO_WritePin(GPIOA, extra_baixo_Pin, GPIO_PIN_RESET);
+   HAL_GPIO_WritePin(GPIOA, baixo_Pin, GPIO_PIN_RESET);
+   HAL_GPIO_WritePin(GPIOB, medio_Pin, GPIO_PIN_RESET);
+   HAL_GPIO_WritePin(GPIOB, alto_Pin, GPIO_PIN_RESET);
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
-      uint32_t current_time = HAL_GetTick();
+   while (1)
+     {
+         uint32_t current_time = HAL_GetTick();
 
-      // Lógica para o botão "selecionar nível"
-      if (HAL_GPIO_ReadPin(nivel_GPIO_Port, nivel_Pin) == GPIO_PIN_RESET && (current_time - last_nivel_press_time) > DEBOUNCE_TIME) {
-          last_nivel_press_time = current_time;
+         // Lógica para o botão "selecionar nível"
+         if (HAL_GPIO_ReadPin(GPIOB, bt_nivel_Pin) == GPIO_PIN_RESET &&
+             (current_time - last_nivel_press_time) > DEBOUNCE_TIME)
+         {
+             last_nivel_press_time = current_time;
 
-              nivelAtual = (nivelAtual + 1) % 5;
+             // Avança para o próximo nível, sem passar por "NENHUM"
+             if (nivelAtual == NIVEL_ALTO || nivelAtual == NIVEL_NENHUM) {
+                 nivelAtual = NIVEL_EXTRA_BAIXO;
+             } else {
+                 nivelAtual++;
+             }
 
-              switch (nivelAtual) {
-                  case NIVEL_EXTRA_BAIXO: freqAlvo = FREQ_EXTRA_BAIXO; break;
-                  case NIVEL_BAIXO:       freqAlvo = FREQ_BAIXO;       break;
-                  case NIVEL_MEDIO:       freqAlvo = FREQ_MEDIO;       break;
-                  case NIVEL_ALTO:        freqAlvo = FREQ_ALTO;        break;
-                  case NIVEL_NENHUM:      freqAlvo = FREQ_VAZIO;       break;
-                  default: break;
-              }
+             // Atualiza a frequência alvo conforme nível escolhido
+             switch (nivelAtual) {
+                 case NIVEL_EXTRA_BAIXO: freqAlvo = FREQ_EXTRA_BAIXO; break;
+                 case NIVEL_BAIXO:       freqAlvo = FREQ_BAIXO;       break;
+                 case NIVEL_MEDIO:       freqAlvo = FREQ_MEDIO;       break;
+                 case NIVEL_ALTO:        freqAlvo = FREQ_ALTO;        break;
+                 default:                freqAlvo = FREQ_VAZIO;       break; // fallback
+             }
 
-              HAL_GPIO_WritePin(extra_baixo_GPIO_Port, extra_baixo_Pin, GPIO_PIN_RESET);
-              HAL_GPIO_WritePin(baixo_GPIO_Port, baixo_Pin, GPIO_PIN_RESET);
-              HAL_GPIO_WritePin(medio_GPIO_Port, medio_Pin, GPIO_PIN_RESET);
-              HAL_GPIO_WritePin(alto_GPIO_Port, alto_Pin, GPIO_PIN_RESET);
-      }
+             // Desliga todos os LEDs até atingir a frequência do nível
+             HAL_GPIO_WritePin(GPIOA, extra_baixo_Pin, GPIO_PIN_RESET);
+             HAL_GPIO_WritePin(GPIOA, baixo_Pin, GPIO_PIN_RESET);
+             HAL_GPIO_WritePin(GPIOB, medio_Pin, GPIO_PIN_RESET);
+             HAL_GPIO_WritePin(GPIOB, alto_Pin, GPIO_PIN_RESET);
+         }
 
-      // Lógica para o botão "encher"
-      if (HAL_GPIO_ReadPin(encher_GPIO_Port, encher_Pin) == GPIO_PIN_RESET && (current_time - last_encher_press_time) > DEBOUNCE_TIME) {
-          last_encher_press_time = current_time;
-          if (nivelAtual != NIVEL_NENHUM) {
-              enchendo = 1;
-              esvaziando = 0;
-          }
-      }
+         // Lógica para o botão "encher"
+         if (HAL_GPIO_ReadPin(GPIOB, bt_encher_Pin) == GPIO_PIN_RESET && (current_time - last_esvaziar_press_time) > DEBOUNCE_TIME) {
+             last_esvaziar_press_time = current_time;
+             enchendo = 1;
+             esvaziando = 0;
+         }
 
-      // Lógica para o botão "esvaziar"
-      if (HAL_GPIO_ReadPin(esvaziar_GPIO_Port, esvaziar_Pin) == GPIO_PIN_RESET && (current_time - last_esvaziar_press_time) > DEBOUNCE_TIME) {
-          last_esvaziar_press_time = current_time;
-          enchendo = 0;
-          esvaziando = 1;
-      }
+         // Lógica para o botão "esvaziar"
+         if (HAL_GPIO_ReadPin(bt_esvaziar_GPIO_Port, bt_esvaziar_Pin) == GPIO_PIN_RESET && (current_time - last_esvaziar_press_time) > DEBOUNCE_TIME) {
+             last_esvaziar_press_time = current_time;
+             enchendo = 0;
+             esvaziando = 1;
+         }
 
-      // Lógica de controle de frequência - ENCHENDO e ESVAZIANDO
-      if ((enchendo || esvaziando) && (current_time - last_freq_update_time) > FREQ_UPDATE_TIME) {
-          last_freq_update_time = current_time;
 
-          if (enchendo) {
-              if (freqAtual < freqAlvo) {
-                  freqAtual += 10;
-                  PWM_SetFrequency(freqAtual);
-              } else {
-                  enchendo = 0;
-                  AtualizaLEDs(nivelAtual);
-              }
-          } else if (esvaziando) {
-              if (freqAtual > FREQ_VAZIO) {
-                  freqAtual -= 10;
-                  PWM_SetFrequency(freqAtual);
-
-                  // Lógica para desligar os LEDs conforme a frequência diminui
-                  if (freqAtual < FREQ_ALTO) HAL_GPIO_WritePin(alto_GPIO_Port, alto_Pin, GPIO_PIN_RESET);
-                  if (freqAtual < FREQ_MEDIO) HAL_GPIO_WritePin(medio_GPIO_Port, medio_Pin, GPIO_PIN_RESET);
-                  if (freqAtual < FREQ_BAIXO) HAL_GPIO_WritePin(baixo_GPIO_Port, baixo_Pin, GPIO_PIN_RESET);
-                  if (freqAtual < FREQ_EXTRA_BAIXO) HAL_GPIO_WritePin(extra_baixo_GPIO_Port, extra_baixo_Pin, GPIO_PIN_RESET);
-
-              } else {
-                  esvaziando = 0;
-                  freqAtual = FREQ_VAZIO;
-                  PWM_SetFrequency(FREQ_VAZIO);
-                  nivelAtual = NIVEL_NENHUM;
-                  HAL_GPIO_WritePin(extra_baixo_GPIO_Port, extra_baixo_Pin, GPIO_PIN_RESET);
-                  HAL_GPIO_WritePin(baixo_GPIO_Port, baixo_Pin, GPIO_PIN_RESET);
-                  HAL_GPIO_WritePin(medio_GPIO_Port, medio_Pin, GPIO_PIN_RESET);
-                  HAL_GPIO_WritePin(alto_GPIO_Port, alto_Pin, GPIO_PIN_RESET);
-              }
-          }
-      }
-  }
+             if (enchendo) {
+                 if (freqAtual > freqAlvo) {
+                     freqAtual -= 250;  // vai diminuindo até o alvo
+                     if (freqAtual < freqAlvo) freqAtual = freqAlvo;
+                     PWM_SetFrequency(freqAtual);
+                 } else {
+                     enchendo = 0;
+                     PWM_SetFrequency(freqAtual);
+                     AtualizaLEDs(nivelAtual);
+                 }
+             } else if (esvaziando) {
+                 if (freqAtual < FREQ_VAZIO) {
+                     freqAtual += 250;  // vai subindo até "vazio"
+                     if (freqAtual > FREQ_VAZIO) freqAtual = FREQ_VAZIO;
+                     PWM_SetFrequency(freqAtual);
+                 } else {
+                     esvaziando = 0;
+                     nivelAtual = NIVEL_NENHUM;
+                     PWM_SetFrequency(FREQ_VAZIO);
+                     AtualizaLEDs(nivelAtual);
+                 }
+             }
+     }
   /* USER CODE END 3 */
 }
 
-
-void PWM_SetFrequency(uint32_t freq)
-{
-    uint32_t timer_clock = 72000000; // APB1 Timer clock (Blue Pill)
-    uint32_t prescaler = 0;
-
-    uint32_t arr = (timer_clock / (prescaler + 1)) / freq - 1;
-
-    __HAL_TIM_SET_AUTORELOAD(&htim2, arr); //sobrescreve arr para chegar na frequencia desejada
-    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, arr/2); // duty 50%
-}
-
-void AtualizaLEDs(NivelPressostato nivel)
-{
-    // Desliga todos os LEDs primeiro
-    HAL_GPIO_WritePin(extra_baixo_GPIO_Port, extra_baixo_Pin, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(baixo_GPIO_Port, baixo_Pin, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(medio_GPIO_Port, medio_Pin, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(alto_GPIO_Port, alto_Pin, GPIO_PIN_RESET);
-
-    // Acende apenas o LED correspondente ao nível atingido
-    switch (nivel) {
-        case NIVEL_EXTRA_BAIXO:
-            HAL_GPIO_WritePin(extra_baixo_GPIO_Port, extra_baixo_Pin, GPIO_PIN_SET);
-            break;
-        case NIVEL_BAIXO:
-            HAL_GPIO_WritePin(baixo_GPIO_Port, baixo_Pin, GPIO_PIN_SET);
-            break;
-        case NIVEL_MEDIO:
-            HAL_GPIO_WritePin(medio_GPIO_Port, medio_Pin, GPIO_PIN_SET);
-            break;
-        case NIVEL_ALTO:
-            HAL_GPIO_WritePin(alto_GPIO_Port, alto_Pin, GPIO_PIN_SET);
-            break;
-        default:
-            // Nenhum LED para NIVEL_NENHUM
-            break;
-    }
-}
 
 /**
   * @brief System Clock Configuration
@@ -263,16 +233,13 @@ void SystemClock_Config(void)
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
 
+  __HAL_FLASH_SET_LATENCY(FLASH_LATENCY_1);
+
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
-  RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
-  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -281,60 +248,59 @@ void SystemClock_Config(void)
   /** Initializes the CPU, AHB and APB buses clocks
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
-                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
-  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+                              |RCC_CLOCKTYPE_PCLK1;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSE;
+  RCC_ClkInitStruct.SYSCLKDivider = RCC_SYSCLK_DIV1;
+  RCC_ClkInitStruct.AHBCLKDivider = RCC_HCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_APB1_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK)
   {
     Error_Handler();
   }
 }
 
 /**
-  * @brief TIM2 Initialization Function
+  * @brief TIM3 Initialization Function
   * @param None
   * @retval None
   */
-static void MX_TIM2_Init(void)
+static void MX_TIM3_Init(void)
 {
 
-  /* USER CODE BEGIN TIM2_Init 0 */
+  /* USER CODE BEGIN TIM3_Init 0 */
 
-  /* USER CODE END TIM2_Init 0 */
+  /* USER CODE END TIM3_Init 0 */
 
   TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
   TIM_OC_InitTypeDef sConfigOC = {0};
 
-  /* USER CODE BEGIN TIM2_Init 1 */
+  /* USER CODE BEGIN TIM3_Init 1 */
 
-  /* USER CODE END TIM2_Init 1 */
-  // inicia com aproximadamente 26.5k = 72e6/(2716)*1
-  htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 0;
-  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 2716-1;
-  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+  /* USER CODE END TIM3_Init 1 */
+  htim3.Instance = TIM3;
+  htim3.Init.Prescaler = 0;
+  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim3.Init.Period = 1810;
+  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
   {
     Error_Handler();
   }
   sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+  if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK)
   {
     Error_Handler();
   }
-  if (HAL_TIM_PWM_Init(&htim2) != HAL_OK)
+  if (HAL_TIM_PWM_Init(&htim3) != HAL_OK)
   {
     Error_Handler();
   }
   sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
   {
     Error_Handler();
   }
@@ -342,14 +308,14 @@ static void MX_TIM2_Init(void)
   sConfigOC.Pulse = 0;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
   {
     Error_Handler();
   }
-  /* USER CODE BEGIN TIM2_Init 2 */
+  /* USER CODE BEGIN TIM3_Init 2 */
 
-  /* USER CODE END TIM2_Init 2 */
-  HAL_TIM_MspPostInit(&htim2);
+  /* USER CODE END TIM3_Init 2 */
+  HAL_TIM_MspPostInit(&htim3);
 
 }
 
@@ -366,24 +332,41 @@ static void MX_GPIO_Init(void)
   /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOD_CLK_ENABLE();
-  __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, alto_Pin|medio_Pin|baixo_Pin|extra_baixo_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, extra_baixo_Pin|baixo_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : alto_Pin medio_Pin baixo_Pin extra_baixo_Pin */
-  GPIO_InitStruct.Pin = alto_Pin|medio_Pin|baixo_Pin|extra_baixo_Pin;
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, alto_Pin|medio_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pins : bt_nivel_Pin bt_encher_Pin */
+  GPIO_InitStruct.Pin = bt_nivel_Pin|bt_encher_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : extra_baixo_Pin baixo_Pin */
+  GPIO_InitStruct.Pin = extra_baixo_Pin|baixo_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : esvaziar_Pin encher_Pin nivel_Pin */
-  GPIO_InitStruct.Pin = esvaziar_Pin|encher_Pin|nivel_Pin;
+  /*Configure GPIO pin : bt_esvaziar_Pin */
+  GPIO_InitStruct.Pin = bt_esvaziar_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(bt_esvaziar_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : alto_Pin medio_Pin */
+  GPIO_InitStruct.Pin = alto_Pin|medio_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
@@ -392,7 +375,44 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void PWM_SetFrequency(uint32_t freq)
+{
+    uint32_t timer_clock = 48000000; // APB1 Timer clock
+    uint32_t prescaler = 0;
 
+    uint32_t arr = (timer_clock / (prescaler + 1)) / freq - 1;
+
+    __HAL_TIM_SET_AUTORELOAD(&htim3, arr); //sobrescreve arr para chegar na frequencia desejada
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, arr/2); // duty 50%
+}
+
+void AtualizaLEDs(NivelPressostato nivel)
+{
+    // Desliga todos os LEDs primeiro
+	HAL_GPIO_WritePin(GPIOA, extra_baixo_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOA, baixo_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOB, medio_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOB, alto_Pin, GPIO_PIN_RESET);
+
+    // Acende apenas o LED correspondente ao nível atingido
+    switch (nivel) {
+        case NIVEL_EXTRA_BAIXO:
+            HAL_GPIO_WritePin(GPIOA, extra_baixo_Pin, GPIO_PIN_SET);
+            break;
+        case NIVEL_BAIXO:
+            HAL_GPIO_WritePin(GPIOA, baixo_Pin, GPIO_PIN_SET);
+            break;
+        case NIVEL_MEDIO:
+            HAL_GPIO_WritePin(GPIOB, medio_Pin, GPIO_PIN_SET);
+            break;
+        case NIVEL_ALTO:
+            HAL_GPIO_WritePin(GPIOB, alto_Pin, GPIO_PIN_SET);
+            break;
+        default:
+            // Nenhum LED para NIVEL_NENHUM
+            break;
+    }
+}
 /* USER CODE END 4 */
 
 /**

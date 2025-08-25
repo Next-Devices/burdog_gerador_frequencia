@@ -9,7 +9,8 @@ RM := rm -rf
 
 # All of the sources participating in the build are defined here
 -include sources.mk
--include Drivers/STM32F1xx_HAL_Driver/Src/subdir.mk
+-include Drivers/STM32C0xx_HAL_Driver/Src/subdir.mk
+-include Drivers/BSP/STM32C0xx_Nucleo/subdir.mk
 -include Core/Startup/subdir.mk
 -include Core/Src/subdir.mk
 -include objects.mk
@@ -34,34 +35,34 @@ $(wildcard ../makefile.init) \
 $(wildcard ../makefile.targets) \
 
 
-BUILD_ARTIFACT_NAME := geradorFrequencia
+BUILD_ARTIFACT_NAME := simul_press
 BUILD_ARTIFACT_EXTENSION := elf
 BUILD_ARTIFACT_PREFIX :=
 BUILD_ARTIFACT := $(BUILD_ARTIFACT_PREFIX)$(BUILD_ARTIFACT_NAME)$(if $(BUILD_ARTIFACT_EXTENSION),.$(BUILD_ARTIFACT_EXTENSION),)
 
 # Add inputs and outputs from these tool invocations to the build variables 
 EXECUTABLES += \
-geradorFrequencia.elf \
+simul_press.elf \
 
 MAP_FILES += \
-geradorFrequencia.map \
+simul_press.map \
 
 SIZE_OUTPUT += \
 default.size.stdout \
 
 OBJDUMP_LIST += \
-geradorFrequencia.list \
+simul_press.list \
 
 
 # All Target
 all: main-build
 
 # Main-build Target
-main-build: geradorFrequencia.elf secondary-outputs
+main-build: simul_press.elf secondary-outputs
 
 # Tool invocations
-geradorFrequencia.elf geradorFrequencia.map: $(OBJS) $(USER_OBJS) C:\Users\grazi\STM32CubeIDE\workspace_1.19.0\geradorFrequencia\STM32F103C8TX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "geradorFrequencia.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m3 -T"C:\Users\grazi\STM32CubeIDE\workspace_1.19.0\geradorFrequencia\STM32F103C8TX_FLASH.ld" --specs=nosys.specs -Wl,-Map="geradorFrequencia.map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+simul_press.elf simul_press.map: $(OBJS) $(USER_OBJS) C:\Users\grazi\STM32CubeIDE\workspace_1.19.0\simul_press\STM32C031C6TX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "simul_press.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m0plus -T"C:\Users\grazi\STM32CubeIDE\workspace_1.19.0\simul_press\STM32C031C6TX_FLASH.ld" --specs=nosys.specs -Wl,-Map="simul_press.map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
@@ -70,14 +71,14 @@ default.size.stdout: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
 	@echo 'Finished building: $@'
 	@echo ' '
 
-geradorFrequencia.list: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-objdump -h -S $(EXECUTABLES) > "geradorFrequencia.list"
+simul_press.list: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-objdump -h -S $(EXECUTABLES) > "simul_press.list"
 	@echo 'Finished building: $@'
 	@echo ' '
 
 # Other Targets
 clean:
-	-$(RM) default.size.stdout geradorFrequencia.elf geradorFrequencia.list geradorFrequencia.map
+	-$(RM) default.size.stdout simul_press.elf simul_press.list simul_press.map
 	-@echo ' '
 
 secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST)
