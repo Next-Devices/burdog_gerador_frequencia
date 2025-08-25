@@ -1,7 +1,8 @@
-../Core/Src/main.c:95:5:main	16	static
-../Core/Src/main.c:211:6:PWM_SetFrequency	32	static
-../Core/Src/main.c:222:6:AtualizaLEDs	16	static
-../Core/Src/main.c:254:6:SystemClock_Config	72	static
-../Core/Src/main.c:294:13:MX_TIM2_Init	64	static
-../Core/Src/main.c:354:13:MX_GPIO_Init	40	static
-../Core/Src/main.c:395:6:Error_Handler	4	static,ignoring_inline_asm
+../Core/Src/main.c:97:5:main	16	static
+../Core/Src/main.c:247:6:SystemClock_Config	64	static
+../Core/Src/main.c:284:13:MX_TIM3_Init	64	static
+../Core/Src/main.c:343:13:MX_GPIO_Init	56	static
+../Core/Src/main.c:394:6:PWM_SetFrequency	32	static
+../Core/Src/main.c:405:6:AtualizaLEDs	16	static
+../Core/Src/main.c:433:6:PiscarLED	24	static
+../Core/Src/main.c:459:6:Error_Handler	8	static,ignoring_inline_asm

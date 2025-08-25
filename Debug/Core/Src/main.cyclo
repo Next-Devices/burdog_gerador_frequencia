@@ -1,7 +1,8 @@
-../Core/Src/main.c:95:5:main	19
-../Core/Src/main.c:211:6:PWM_SetFrequency	1
-../Core/Src/main.c:222:6:AtualizaLEDs	5
-../Core/Src/main.c:254:6:SystemClock_Config	3
-../Core/Src/main.c:294:13:MX_TIM2_Init	6
-../Core/Src/main.c:354:13:MX_GPIO_Init	1
-../Core/Src/main.c:395:6:Error_Handler	1
+../Core/Src/main.c:97:5:main	24
+../Core/Src/main.c:247:6:SystemClock_Config	3
+../Core/Src/main.c:284:13:MX_TIM3_Init	6
+../Core/Src/main.c:343:13:MX_GPIO_Init	1
+../Core/Src/main.c:394:6:PWM_SetFrequency	1
+../Core/Src/main.c:405:6:AtualizaLEDs	7
+../Core/Src/main.c:433:6:PiscarLED	3
+../Core/Src/main.c:459:6:Error_Handler	1
