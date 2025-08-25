@@ -27,10 +27,7 @@ extern "C" {
 #endif
 
 /* Includes ------------------------------------------------------------------*/
-#include "stm32c0xx_hal.h"
-
-#include "stm32c0xx_nucleo.h"
-#include <stdio.h>
+#include "stm32f1xx_hal.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -62,32 +59,20 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define RCC_OSCX_IN_Pin GPIO_PIN_14
-#define RCC_OSCX_IN_GPIO_Port GPIOC
-#define RCC_OSCX_OUT_Pin GPIO_PIN_15
-#define RCC_OSCX_OUT_GPIO_Port GPIOC
-#define RCC_OSC_IN_Pin GPIO_PIN_0
-#define RCC_OSC_IN_GPIO_Port GPIOF
-#define RCC_OSC_OUT_Pin GPIO_PIN_1
-#define RCC_OSC_OUT_GPIO_Port GPIOF
-#define bt_nivel_Pin GPIO_PIN_10
-#define bt_nivel_GPIO_Port GPIOB
-#define extra_baixo_Pin GPIO_PIN_9
-#define extra_baixo_GPIO_Port GPIOA
-#define bt_esvaziar_Pin GPIO_PIN_10
-#define bt_esvaziar_GPIO_Port GPIOA
-#define DEBUG_SWDIO_Pin GPIO_PIN_13
-#define DEBUG_SWDIO_GPIO_Port GPIOA
-#define DEBUG_SWCLK_Pin GPIO_PIN_14
-#define DEBUG_SWCLK_GPIO_Port GPIOA
-#define baixo_Pin GPIO_PIN_15
+#define alto_Pin GPIO_PIN_1
+#define alto_GPIO_Port GPIOA
+#define medio_Pin GPIO_PIN_3
+#define medio_GPIO_Port GPIOA
+#define baixo_Pin GPIO_PIN_5
 #define baixo_GPIO_Port GPIOA
-#define bt_encher_Pin GPIO_PIN_3
-#define bt_encher_GPIO_Port GPIOB
-#define alto_Pin GPIO_PIN_4
-#define alto_GPIO_Port GPIOB
-#define medio_Pin GPIO_PIN_5
-#define medio_GPIO_Port GPIOB
+#define extra_baixo_Pin GPIO_PIN_7
+#define extra_baixo_GPIO_Port GPIOA
+#define esvaziar_Pin GPIO_PIN_6
+#define esvaziar_GPIO_Port GPIOB
+#define encher_Pin GPIO_PIN_7
+#define encher_GPIO_Port GPIOB
+#define nivel_Pin GPIO_PIN_8
+#define nivel_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 
