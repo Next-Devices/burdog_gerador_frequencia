@@ -184,7 +184,7 @@ int main(void)
 
          // Lógica para o botão "encher"
          if (HAL_GPIO_ReadPin(GPIOB, bt_encher_Pin) == GPIO_PIN_RESET && (current_time - last_esvaziar_press_time) > DEBOUNCE_TIME) {
-             last_esvaziar_press_time = current_time;
+        	 last_encher_press_time  = current_time;
              enchendo = 1;
              esvaziando = 0;
          }
@@ -199,7 +199,7 @@ int main(void)
 
              if (enchendo) {
                  if (freqAtual > freqAlvo) {
-                     freqAtual -= 250;  // vai diminuindo até o alvo
+                     freqAtual -= 100;  // vai diminuindo até o alvo
                      if (freqAtual < freqAlvo) freqAtual = freqAlvo;
                      PWM_SetFrequency(freqAtual);
                  } else {
@@ -209,7 +209,7 @@ int main(void)
                  }
              } else if (esvaziando) {
                  if (freqAtual < FREQ_VAZIO) {
-                     freqAtual += 250;  // vai subindo até "vazio"
+                     freqAtual += 100;  // vai subindo até "vazio"
                      if (freqAtual > FREQ_VAZIO) freqAtual = FREQ_VAZIO;
                      PWM_SetFrequency(freqAtual);
                  } else {
